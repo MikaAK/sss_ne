@@ -30,7 +30,7 @@ defmodule SSSNE.GeneticsServer do
     evaluator \\ PhenotypeEvaluator.SomeEvaluator,
     num_parents \\ 10,
     num_genes \\ 10,
-    max_evaluations \\ 10,
+    max_evaluations \\ 10_000,
     num_gene_trials \\ 20,
     reproduction_rate \\ 0.8,
     opts \\ [name: @name]
@@ -40,15 +40,15 @@ defmodule SSSNE.GeneticsServer do
       initializer: initializer,
       reproduction_rate: reproduction_rate,
       evaluator: evaluator,
-      num_gene_trials: gene_trials,
+      num_gene_trials: num_gene_trials,
       max_evaluations: max_evaluations,
       num_parents: num_parents,
       num_genes: num_genes
     }, opts)
   end
 
-  def predict(inputs) do
-    GenServer.call(@name, :run_evaluations, timeout: @timeout)
+  def run_evaluations do
+    GenServer.call(@name, :run_evaluations, @timeout)
   end
 
   # Server
@@ -82,7 +82,7 @@ defmodule SSSNE.GeneticsServer do
       |> Enum.with_index
       |> Enum.reduce_while(
         acc,
-        GeneticServerImpl.evolve_genes_func(max_evals, gene_trials)
+        GeneticsServerImpl.evolve_genes_func(state)
       )
 
     new_state = %{state |

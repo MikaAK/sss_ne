@@ -3,7 +3,7 @@ defmodule SSSNE.PhenotypeEvaluator do
 
   @callback evaluate(any, integer) :: any
 
-  @spec evaluate(t, any) :: any
+  @spec evaluate(t, any, integer) :: any
   def evaluate(module, genes, trail_num) do
     module.evaluate(genes, trail_num)
   end

@@ -1,4 +1,4 @@
-defmodule SSNE.GenomeMutation.SomeMutation do
+defmodule SSSNE.GenomeMutation.SomeMutation do
   alias SSSNE.GenomeMutation
 
   @behaviour GenomeMutation
@@ -6,15 +6,14 @@ defmodule SSNE.GenomeMutation.SomeMutation do
   @mutations [:add_half, :add_one, :sub_one, :sub_half]
 
   @impl GenomeMutation
-  def mutate(%{genes: genes} = parent_genes, genes_id) do
-
+  def mutate(%{genes: genes}, new_parent_id) do
     genes
       |> Enum.with_index
-      |> Enum.reduce(%{}, fn {{_, gene}, index} ->
+      |> Enum.into(%{}, fn {{_, gene}, index} ->
         mutation = Enum.random(@mutations)
-        gene_key = "#{genes_id}-G#{index}"
+        gene_key = SSSNE.GeneticKeyName.gene_index_id(new_parent_id, index)
 
-        {gene_key, mutate_gene(gene, mutation)}
+        {gene_key, mutate_gene(mutation, gene)}
       end)
   end
 
