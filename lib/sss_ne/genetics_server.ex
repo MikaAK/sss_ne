@@ -1,28 +1,3 @@
-#  NEvaluations <- 0
-# // the genotype of the parents of the first generation in initialized randomly
-#  for p = 0 to NParents do
-#    for g = 0 to NGenes do
-#      genome[p][g] = rand(-8.0, 8.0)
-#
-#    Fitness[p] = evaluate (p)
-#    NEvaluations = NEvaluations + NTrials
-#  // evolution is continued until a maximum number of evaluation trials is performed
-#  while(NEvaluations < MaxEvaluations) do
-#    for p = 0 to NParents do
-#      // in the randomly varying experimental condition parents are re-evaluated
-#      if (RandomlyVaryingInitialCondition) then
-#        Fitness[p] = evaluate (p)
-#        NEvaluations = NEvaluations + NTrials
-#
-#      genome[p+NParents] = genome[p] // create a copy of parents’ genome
-#      mutate-genome(p+NParents) // mutate the genotype of the offspring
-#      Fitness[p+Nparents] = evaluate[p+NParents]
-#      NEvaluations = NEvaluations + NTrials // noise ensures that parents are replaced by less fit offspring with a low probability
-#      NoiseFitness[p] = Fitness[p]  * (1.0 + rand(-StochasticityMaxFit, StochasticityMaxFit))
-#      NoiseFitness[p+NParents] = Fitness[p+NParents] * (1.0 + rand(-StochasticityMaxFit, StochasticityMaxFit))
-#  // the best among parents and offspring become the new parents
-#  rank genome[NParents2] for NoiseFitness[NParents2]
-
 defmodule SSSNE.GeneticsServer do
   use GenServer
 
@@ -33,12 +8,16 @@ defmodule SSSNE.GeneticsServer do
 
   @type genome :: %{required(integer) => integer}
   @type state :: %{
-    reproduction_rate: integer, # Stochasticity
-    num_parents: integer,
-    num_genes: integer,
+    trial_count: integer,
     genome: genome,
     mutator: GenomeMutation.t,
-    initializer: GenomeInitializer.t
+    initializer: GeneInitializer.t,
+    reproduction_rate: float,
+    evaluator: PhenotypeEvaluator.t,
+    num_gene_trials: integer,
+    max_evaluations: integer,
+    num_parents: integer,
+    num_genes: integer
   }
 
   @name SSSNE.GeneticsServer
@@ -51,6 +30,8 @@ defmodule SSSNE.GeneticsServer do
     evaluator \\ PhenotypeEvaluator.SomeEvaluator,
     num_parents \\ 10,
     num_genes \\ 10,
+    max_evaluations \\ 10,
+    num_gene_trials \\ 20,
     reproduction_rate \\ 0.8,
     opts \\ [name: @name]
   ) do
@@ -59,22 +40,57 @@ defmodule SSSNE.GeneticsServer do
       initializer: initializer,
       reproduction_rate: reproduction_rate,
       evaluator: evaluator,
+      num_gene_trials: gene_trials,
+      max_evaluations: max_evaluations,
       num_parents: num_parents,
       num_genes: num_genes
     }, opts)
   end
 
   def predict(inputs) do
-    GenServer.call(@name, {:predict_phenotype, inputs}, timeout: @timeout)
+    GenServer.call(@name, :run_evaluations, timeout: @timeout)
   end
 
   # Server
   def init(state) do
+    genome = GeneticsServerImpl.initialize_genome(state)
+
     {:ok, Map.merge(%{
-      genome: GeneticsServerImpl.initialize_genome(state)
+      genome: genome,
+      max_fitness: GeneticsServerImpl.genome_max_fitness(genome),
+      evaluations: 0
     }, state)}
   end
 
-  def handle_call({:predict, inputs}, _, state) do
+  def handle_call(:run_evaluations, _, %{
+    genome: genome,
+    max_fitness: max_fitness,
+    num_gene_trials: gene_trials,
+    evaluations: evaluations
+  } = state) do
+    acc = %{
+      genome: genome,
+      max_fitness: max_fitness,
+      evaluations: evaluations + gene_trials
+    }
+
+    %{
+      evaluations: evaluations,
+      max_fitness: max_fitness,
+      genome: genome
+    } = genome
+      |> Enum.with_index
+      |> Enum.reduce_while(
+        acc,
+        GeneticServerImpl.evolve_genes_func(max_evals, gene_trials)
+      )
+
+    new_state = %{state |
+      evaluations: evaluations,
+      max_fitness: max_fitness,
+      genome: genome
+    }
+
+    {:reply, {:ok, new_state}, new_state}
   end
 end

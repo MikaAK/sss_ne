@@ -3,6 +3,6 @@ defmodule SSSNE.GenomeMutation do
 
   @callback mutate(any) :: any
 
-  @spec mutate(t, any) :: any
-  def mutate(module, param), do: module.mutate(param)
+  @spec mutate(t, integer, any) :: any
+  def mutate(module, genes_id, genes), do: module.mutate(genes, genes_id)
 end
