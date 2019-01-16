@@ -25,7 +25,7 @@
 #        (1.0 + rand(-Stochasticity * MaxFit, Stochasticity * MaxFit))
 #
 #  // the best among parents and offspring become the new parents
-#  rank genome[NParents2] for NoiseFitness[NParents2]
+#  rank genome[NParents * 2] for NoiseFitness[NParents * 2]
 
 defmodule SSSNE.PhenotypeEvaluator.SomeEvaluator do
   alias SSSNE.PhenotypeEvaluator

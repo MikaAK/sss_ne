@@ -6,7 +6,14 @@ defmodule SSSNE.GeneticsServer do
     GeneInitializer, PhenotypeEvaluator
   }
 
-  @type genome :: %{required(integer) => integer}
+  @type phenotype :: %{
+    genes: %{required(String.t) => integer},
+    noise_fitness: integer,
+    fitness: integer
+  }
+
+  @type genome :: %{required(String.t) => phenotype}
+
   @type state :: %{
     trial_count: integer,
     genome: genome,
@@ -58,39 +65,45 @@ defmodule SSSNE.GeneticsServer do
     {:ok, Map.merge(%{
       genome: genome,
       max_fitness: GeneticsServerImpl.genome_max_fitness(genome),
-      evaluations: 0
+      evaluations: 0,
+      evolutions: 0
     }, state)}
   end
 
-  def handle_call(:run_evaluations, _, %{
-    genome: genome,
-    max_fitness: max_fitness,
-    num_gene_trials: gene_trials,
-    evaluations: evaluations
-  } = state) do
-    acc = %{
-      genome: genome,
-      max_fitness: max_fitness,
-      evaluations: evaluations + gene_trials
-    }
+  def handle_call(:run_evaluations, _, state) do
+    new_state = evaluate_and_evolve(state)
+
+    {:reply, {:ok, new_state}, new_state}
+  end
+
+  defp evaluate_and_evolve(%{max_evaluations: max_evals, evolutions: evolutions} = state) do
+    task = Task.async(fn -> evolve_genes(state) end)
 
     %{
       evaluations: evaluations,
       max_fitness: max_fitness,
       genome: genome
-    } = genome
-      |> Enum.with_index
-      |> Enum.reduce_while(
-        acc,
-        GeneticsServerImpl.evolve_genes_func(state)
-      )
+    } = Task.await(task, @timeout)
 
     new_state = %{state |
+      evolutions: evolutions + 1,
       evaluations: evaluations,
       max_fitness: max_fitness,
       genome: genome
     }
 
-    {:reply, {:ok, new_state}, new_state}
+    if new_state.evaluations < max_evals do
+      evaluate_and_evolve(new_state)
+    else
+      new_state
+    end
+  end
+
+  defp evolve_genes(state) do
+    new_state = GeneticsServerImpl.evolve_genes(state)
+
+    state
+      |> Map.merge(new_state)
+      |> GeneticsServerImpl.rank_select_genes
   end
 end

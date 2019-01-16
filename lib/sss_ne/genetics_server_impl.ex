@@ -49,55 +49,60 @@ defmodule SSSNE.GeneticsServerImpl do
       |> Enum.max
   end
 
-  def evolve_genes_func(%{
+  def evolve_genes(%{
+    genome: genome,
     reproduction_rate: reproduction_rate,
     num_gene_trials: gene_trials,
-    max_evaluations: max_evals,
+    max_fitness: max_fitness,
+    evaluations: evaluations,
     evaluator: evaluator,
+    genome: genome,
     mutator: mutator
   }) do
-    fn
-      (_, %{evaluations: evaluations} = acc) when evaluations > max_evals ->
-        {:halt, acc}
+    acc = %{
+      genome: genome,
+      max_fitness: max_fitness,
+      evaluations: evaluations + gene_trials
+    }
 
-      (
-        {{parent_id, %{fitness: current_genes_fitness} = current_phenotype}, index},
-        %{
-          max_fitness: max_fitness,
-          evaluations: evaluations,
-          genome: genome
-        }
-      ) ->
-        new_parent_id = GeneticKeyName.parent_index_id(parent_id, index)
-        new_parent_genes = GenomeMutation.mutate(mutator, new_parent_id, current_phenotype)
-        new_fitness = PhenotypeEvaluator.evaluate(evaluator, new_parent_genes, gene_trials)
+    Enum.reduce(Enum.with_index(genome), acc, fn (
+      {{parent_id, %{fitness: current_genes_fitness} = current_phenotype}, index},
+      %{
+        max_fitness: max_fitness,
+        evaluations: evaluations,
+        genome: genome
+      }
+    ) ->
+      new_parent_id = GeneticKeyName.parent_index_id(parent_id, index)
+      new_parent_genes = GenomeMutation.mutate(mutator, new_parent_id, current_phenotype)
+      new_fitness = PhenotypeEvaluator.evaluate(evaluator, new_parent_genes, gene_trials)
 
-        evaluations = evaluations + gene_trials
+      evaluations = evaluations + gene_trials
 
-        parent_noise_fitness = calculate_noise_fitness(
-          max_fitness,
-          reproduction_rate,
-          current_genes_fitness
+      parent_noise_fitness = calculate_noise_fitness(
+        max_fitness,
+        reproduction_rate,
+        current_genes_fitness
+      )
+
+      new_noise_fitness = calculate_noise_fitness(
+        max_fitness,
+        reproduction_rate,
+        new_fitness
+      )
+
+      max_fitness = take_greater(max_fitness, new_fitness)
+
+      %{
+        max_fitness: max_fitness,
+        evaluations: evaluations,
+        genome: add_new_parent_to_genome(
+          genome,
+          {parent_id, parent_noise_fitness},
+          {new_parent_id, new_noise_fitness, new_parent_genes, new_fitness}
         )
-
-        new_noise_fitness = calculate_noise_fitness(
-          max_fitness,
-          reproduction_rate,
-          new_fitness
-        )
-
-        max_fitness = take_greater(max_fitness, new_fitness)
-
-        {:cont, %{
-          max_fitness: max_fitness,
-          evaluations: evaluations,
-          genome: add_new_parent_to_genome(
-            genome,
-            {parent_id, parent_noise_fitness},
-            {new_parent_id, new_noise_fitness, new_parent_genes, new_fitness}
-          )
-        }}
-    end
+      }
+    end)
   end
 
   defp add_new_parent_to_genome(
@@ -107,7 +112,8 @@ defmodule SSSNE.GeneticsServerImpl do
   ) do
     new_parent = %{
       noise_fitness: new_noise_fitness,
-      genes: new_parent_genes, fitness: new_fitness
+      genes: new_parent_genes,
+      fitness: new_fitness
     }
 
     genome
@@ -115,7 +121,7 @@ defmodule SSSNE.GeneticsServerImpl do
       |> Map.put(new_parent_id, new_parent)
   end
 
-  defp take_greater(item_a, item_b) when item_a > item_b, do: item_a
+  defp take_greater(item_a, item_b) when item_a >= item_b, do: item_a
   defp take_greater(item_a, item_b) when item_a < item_b, do: item_b
 
   defp calculate_noise_fitness(max_fitness, reproduction_rate, current_fitness) do
@@ -128,5 +134,14 @@ defmodule SSSNE.GeneticsServerImpl do
 
   defp random_float(min, max) do
     (max - min) * :rand.uniform() + min
+  end
+
+  def rank_select_genes(%{genome: genome, num_parents: num_parents} = state) do
+    genome = genome
+      |> Enum.sort_by(fn {_, %{noise_fitness: noise_fitness}} -> noise_fitness end)
+      |> Enum.take(num_parents)
+      |> Map.new
+
+    Map.put(state, :genome, genome)
   end
 end
