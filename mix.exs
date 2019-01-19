@@ -1,4 +1,4 @@
-defmodule SssNe.MixProject do
+defmodule SSSNE.MixProject do
   use Mix.Project
 
   def project do

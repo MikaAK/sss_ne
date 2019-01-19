@@ -1,4 +1,4 @@
-defmodule SssNe do
+defmodule SSSNE do
   @moduledoc """
   Documentation for SssNe.
   """

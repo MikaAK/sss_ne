@@ -1,6 +1,7 @@
 defmodule SSSNE.GeneticsServerImpl do
   alias SSSNE.{
-    PhenotypeEvaluator, GeneInitializer,
+    Utils,
+    GenotypeEvaluator, GeneInitializer,
     GenomeMutation, GeneticKeyName
   }
 
@@ -15,11 +16,13 @@ defmodule SSSNE.GeneticsServerImpl do
       |> initialize_parents
       |> Enum.with_index
       |> Enum.into(%{}, fn {parent_id, index} ->
-        genes_for_parent = initialize_genes(
-          num_genes, parent_id, initializer
+        genes_for_parent = GeneInitializer.create_genes(
+          initializer,
+          parent_id,
+          0..num_genes
         )
 
-        fitness = PhenotypeEvaluator.evaluate(evaluator, genes_for_parent, num_trials)
+        fitness = GenotypeEvaluator.evaluate(evaluator, genes_for_parent, num_trials)
 
         {GeneticKeyName.parent_index_id(parent_id, index), %{
           noise_fitness: 0,
@@ -30,18 +33,8 @@ defmodule SSSNE.GeneticsServerImpl do
   end
 
   def initialize_parents(num_parents) do
-    Enum.map(0..num_parents, fn _ -> random_id() end)
+    Enum.map(0..num_parents, fn _ -> Utils.random_id() end)
   end
-
-  def initialize_genes(num_genes, parent_id, initializer) do
-    Enum.into(0..num_genes, %{}, fn i ->
-      key = GeneticKeyName.gene_index_id(parent_id, i)
-
-      {key, GeneInitializer.random_init(initializer)}
-    end)
-  end
-
-  defp random_id, do: Base.encode32(:crypto.strong_rand_bytes(10))
 
   def genome_max_fitness(genome) do
     genome
@@ -75,7 +68,7 @@ defmodule SSSNE.GeneticsServerImpl do
     ) ->
       new_parent_id = GeneticKeyName.parent_index_id(parent_id, index)
       new_parent_genes = GenomeMutation.mutate(mutator, new_parent_id, current_phenotype)
-      new_fitness = PhenotypeEvaluator.evaluate(evaluator, new_parent_genes, gene_trials)
+      new_fitness = GenotypeEvaluator.evaluate(evaluator, new_parent_genes, gene_trials)
 
       evaluations = evaluations + gene_trials
 
@@ -91,7 +84,7 @@ defmodule SSSNE.GeneticsServerImpl do
         new_fitness
       )
 
-      max_fitness = take_greater(max_fitness, new_fitness)
+      max_fitness = Utils.take_greater(max_fitness, new_fitness)
 
       %{
         max_fitness: max_fitness,
@@ -121,24 +114,17 @@ defmodule SSSNE.GeneticsServerImpl do
       |> Map.put(new_parent_id, new_parent)
   end
 
-  defp take_greater(item_a, item_b) when item_a >= item_b, do: item_a
-  defp take_greater(item_a, item_b) when item_a < item_b, do: item_b
-
   defp calculate_noise_fitness(max_fitness, reproduction_rate, current_fitness) do
     stochasticity_min = -reproduction_rate * max_fitness
     stochasticity_max = reproduction_rate * max_fitness
-    stochasticity_random = random_float(stochasticity_min, stochasticity_max)
+    stochasticity_random = Utils.random_float(stochasticity_min, stochasticity_max)
 
     current_fitness * (1.0 + stochasticity_random)
   end
 
-  defp random_float(min, max) do
-    (max - min) * :rand.uniform() + min
-  end
-
   def rank_select_genes(%{genome: genome, num_parents: num_parents} = state) do
     genome = genome
-      |> Enum.sort_by(fn {_, %{noise_fitness: noise_fitness}} -> noise_fitness end)
+      |> Enum.sort_by(fn {_, %{noise_fitness: noise_fitness}} -> noise_fitness end, &Kernel.>=/2)
       |> Enum.take(num_parents)
       |> Map.new
 

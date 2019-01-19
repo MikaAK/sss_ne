@@ -1,4 +1,4 @@
-defmodule SSSNE.PhenotypeEvaluator do
+defmodule SSSNE.GenotypeEvaluator do
   @type t :: module
 
   @callback evaluate(any, integer) :: any

@@ -2,8 +2,9 @@ defmodule SSSNE.GeneticsServer do
   use GenServer
 
   alias SSSNE.{
+    Impls,
     GeneticsServerImpl, GenomeMutation,
-    GeneInitializer, PhenotypeEvaluator
+    GeneInitializer, GenotypeEvaluator
   }
 
   @type phenotype :: %{
@@ -20,7 +21,7 @@ defmodule SSSNE.GeneticsServer do
     mutator: GenomeMutation.t,
     initializer: GeneInitializer.t,
     reproduction_rate: float,
-    evaluator: PhenotypeEvaluator.t,
+    evaluator: GenotypeEvaluator.t,
     num_gene_trials: integer,
     max_evaluations: integer,
     num_parents: integer,
@@ -32,13 +33,13 @@ defmodule SSSNE.GeneticsServer do
 
   # API
   def start_link(
-    mutator \\ GenomeMutation.SomeMutation,
-    initializer \\ GeneInitializer.SomeInitializer,
-    evaluator \\ PhenotypeEvaluator.SomeEvaluator,
+    mutator \\ Impls.Some,
+    initializer \\ Impls.Some,
+    evaluator \\ Impls.Some,
     num_parents \\ 10,
     num_genes \\ 10,
-    max_evaluations \\ 10_000,
-    num_gene_trials \\ 20,
+    max_evaluations \\ 1_000,
+    num_gene_trials \\ 10,
     reproduction_rate \\ 0.8,
     opts \\ [name: @name]
   ) do
@@ -58,6 +59,10 @@ defmodule SSSNE.GeneticsServer do
     GenServer.call(@name, :run_evaluations, @timeout)
   end
 
+  def reset_evaluation_count do
+    GenServer.call(@name, :reset_evaluation_count, @timeout)
+  end
+
   # Server
   def init(state) do
     genome = GeneticsServerImpl.initialize_genome(state)
@@ -68,6 +73,12 @@ defmodule SSSNE.GeneticsServer do
       evaluations: 0,
       evolutions: 0
     }, state)}
+  end
+
+  def handle_call(:reset_evaluation_count, _, state) do
+    new_state = %{state | evaluations: 0}
+
+    {:reply, {:ok, new_state}, new_state}
   end
 
   def handle_call(:run_evaluations, _, state) do
