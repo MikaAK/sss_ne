@@ -16,7 +16,13 @@ defmodule SSSNE.Impls.TCEM do
   @behaviour GenotypeEvaluator
 
   @impl GenotypeEvaluator
-  def evaluate(genes, _trial_num, _meta) do
+  def evaluate(%{genome: genome, config: config}, _trial_num, _meta) do
+    network = ComponentDecoder.decode_genome(config, genome)
+
+    network
+      |> Map.values
+      |> Map.keys
+      |> Enum.sum
   end
 
   @impl GenomeMutation
@@ -31,6 +37,17 @@ defmodule SSSNE.Impls.TCEM do
     layers: layers
   }) do
     Enum.map(gene_index_range, &create_random_genome(&1, inputs, outputs, layers))
+  end
+
+  def create_random_genome(index, inputs, outputs, layers) when is_integer(inputs) and
+                                                                is_integer(outputs) and
+                                                                is_integer(layers) do
+    create_random_genome(
+      index,
+      num_to_list(inputs),
+      num_to_list(outputs),
+      num_to_list(layers)
+    )
   end
 
   def create_random_genome(index, inputs, outputs, layers) do
@@ -52,6 +69,8 @@ defmodule SSSNE.Impls.TCEM do
       )
     }
   end
+
+  defp num_to_list(num), do: Enum.into(1..num, [])
 
   defp random_initial_genes(inputs, outputs, layers) do
     "TAC CCT AGT CGT TTC AGC TCG CTA CCC TAG ACA CCG"
