@@ -159,13 +159,4 @@ defmodule SSSNE.Impls.TCEM.ComponentDecoder.SubNet do
 
     NetworkRepresentationMapper.representation_index(representation_mapper, codon_int)
   end
-
-  @impl ComponentDecoder
-  def create_network(input_nodes, middle_nodes, output_nodes) do
-    %{
-      inputs: input_nodes,
-      hidden_layers: middle_nodes,
-      outputs: output_nodes
-    }
-  end
 end

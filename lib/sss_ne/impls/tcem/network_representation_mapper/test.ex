@@ -23,4 +23,13 @@ defmodule SSSNE.Impls.TCEM.NetworkRepresentationMapper.Test do
   def representation_index(16), do: %{node_connections: [:input, [[0, :output], [1, 0]], 2, :output]}
   def representation_index(17), do: %{node_connections: [:input, [0, [1, [0, 2]], 2], :output]}
   def representation_index(18), do: %{node_connections: [:input, [0, 1, 2], 2, :output]}
+
+  @impl NetworkRepresentationMapper
+  def create_network(input_nodes, middle_nodes, output_nodes) do
+    %{
+      inputs: input_nodes,
+      hidden_layers: middle_nodes,
+      outputs: output_nodes
+    }
+  end
 end

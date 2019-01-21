@@ -1,5 +1,5 @@
 defmodule SSSNE.Impls.TCEM.ComponentDecoder do
-  alias SSSNE.Impls.TCEM.EncodingConfig
+  alias SSSNE.Impls.TCEM.{EncodingConfig, NetworkRepresentationMapper}
 
   @type t :: module
   @type genome :: String.t
@@ -11,22 +11,23 @@ defmodule SSSNE.Impls.TCEM.ComponentDecoder do
   @callback decode_output_components(components, EncodingConfig.t) :: any
   @callback decode_middle_components(components, EncodingConfig.t) :: any
 
-  @callback create_network(inputs :: any, middles :: any, outputs :: any) :: any
-
   @callback split_components(components, EncodingConfig.t) ::
     {components, components, components}
 
-  def decode_genome(%EncodingConfig{encoder: mod} = encoding_config, genome) do
+  def decode_genome(%EncodingConfig{
+    encoder: mod,
+    representation_mapper: representation_mapper
+  } = encoding_config, genome) do
     components = genome_to_components(mod, genome)
 
-    network_args = encoding_config
-      |> split_components(components)
-      |> Tuple.to_list
-      |> List.update_at(0, &decode_input_components(encoding_config, &1))
-      |> List.update_at(1, &decode_middle_components(encoding_config, &1))
-      |> List.update_at(2, &decode_output_components(encoding_config, &1))
+    {inputs, middles, outputs} = split_components(encoding_config, components)
 
-    apply(mod, :create_network, network_args)
+    NetworkRepresentationMapper.create_network(
+      representation_mapper,
+      decode_input_components(encoding_config, inputs),
+      decode_middle_components(encoding_config, middles),
+      decode_output_components(encoding_config, outputs)
+    )
   end
 
   @spec genome_to_components(t, genome) :: components
