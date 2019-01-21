@@ -21,7 +21,7 @@ defmodule SSSNE.Impls.TCEM do
 
     network
       |> Map.values
-      |> Map.keys
+      |> Enum.flat_map(&Map.keys/1)
       |> Enum.sum
   end
 
