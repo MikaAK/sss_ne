@@ -4,24 +4,22 @@ defmodule SSSNE.Impls.TCEM.GenomeToNetworkTaskSupervisor do
   alias SSSNE.Impls.TCEM
   alias SSSNE.Impls.TCEM.ComponentDecoder
 
+  @name TCEM.GenomeToNetworkTaskSupervisor
+
   def start_link(opts \\ []) do
-    name_opt = {:name, TCEM.GenomeToNetworkTaskSupervisor}
+    name_opt = {:name, @name}
 
     Task.Supervisor.start_link([name_opt | opts])
   end
 
-  def convert_genome_to_network(
-    genome,
-    %TCEM.EncodingConfig{encoder: encoder} = encoding_config
-  ) do
-    components = ComponentDecoder.genome_to_components(encoder, genome)
+  def convert_genes_to_networks(genes) do
+  end
 
-    {inputs, middles, outputs} = ComponentDecoder.split_components(encoding_config, components)
+  def convert_genome_to_network(genome, %TCEM.EncodingConfig{} = encoding_config) do
+    task = Task.Supervisor.async_nolink(@name, fn ->
+      ComponentDecoder.decode_genome(encoding_config, genome)
+    end, timeout: :timer.seconds(30))
 
-    {
-      ComponentDecoder.decode_input_components(encoding_config, inputs),
-      ComponentDecoder.decode_middle_components(encoding_config, middles),
-      ComponentDecoder.decode_output_components(encoding_config, outputs)
-    }
+    Task.await(task)
   end
 end
