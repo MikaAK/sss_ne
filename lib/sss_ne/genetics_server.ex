@@ -16,43 +16,67 @@ defmodule SSSNE.GeneticsServer do
   @type genome :: %{required(String.t) => phenotype}
 
   @type state :: %{
-    trial_count: integer,
+    meta: map,
     genome: genome,
     mutator: GenomeMutation.t,
     initializer: GeneInitializer.t,
-    reproduction_rate: float,
     evaluator: GenotypeEvaluator.t,
-    num_gene_trials: integer,
+    reproduction_rate: float,
     max_evaluations: integer,
-    num_parents: integer,
-    num_genes: integer
+    gene_trial_count: integer,
+    parent_count: integer,
+    gene_count: integer
   }
+
+  defmodule Config do
+    defstruct [
+      mutator: Impls.Some,
+      initializer: Impls.Some,
+      evaluator: Impls.Some,
+      meta: %{},
+      max_evaluations: 1_000,
+      gene_trial_count: 10,
+      parent_count: 10,
+      gene_count: 10,
+      reproduction_rate: 0.8
+    ]
+  end
 
   @name SSSNE.GeneticsServer
   @timeout :timer.seconds(30)
 
   # API
-  def start_link(
-    mutator \\ Impls.Some,
-    initializer \\ Impls.Some,
-    evaluator \\ Impls.Some,
-    num_parents \\ 10,
-    num_genes \\ 10,
-    max_evaluations \\ 1_000,
-    num_gene_trials \\ 10,
-    reproduction_rate \\ 0.8,
-    opts \\ [name: @name]
-  ) do
+  def start_link(%Config{
+    mutator: mutator,
+    initializer: initializer,
+    evaluator: evaluator,
+    meta: meta,
+    gene_trial_count: gene_trial_count,
+    parent_count: parent_count,
+    gene_count: gene_count,
+    max_evaluations: max_evaluations,
+    reproduction_rate: reproduction_rate
+  }, opts \\ [name: @name]) do
     GenServer.start_link(SSSNE.GeneticsServer, %{
+      meta: meta,
       mutator: mutator,
       initializer: initializer,
       reproduction_rate: reproduction_rate,
       evaluator: evaluator,
-      num_gene_trials: num_gene_trials,
+      gene_trial_count: gene_trial_count,
       max_evaluations: max_evaluations,
-      num_parents: num_parents,
-      num_genes: num_genes
+      parent_count: parent_count,
+      gene_count: gene_count
     }, opts)
+  end
+
+  def run_evaluations(num) do
+    1..num
+      |> Enum.map(fn _ ->
+        reset_evaluation_count()
+        run_evaluations()
+      end)
+      |> List.last
   end
 
   def run_evaluations do

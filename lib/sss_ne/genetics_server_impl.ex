@@ -6,23 +6,25 @@ defmodule SSSNE.GeneticsServerImpl do
   }
 
   def initialize_genome(%{
-    num_parents: num_parents,
-    num_genes: num_genes,
-    num_gene_trials: num_trials,
+    meta: meta,
+    parent_count: parent_count,
+    gene_count: gene_count,
+    gene_trial_count: trial_count,
     initializer: initializer,
     evaluator: evaluator
   }) do
-    num_parents
+    parent_count
       |> initialize_parents
       |> Enum.with_index
       |> Enum.into(%{}, fn {parent_id, index} ->
         genes_for_parent = GeneInitializer.create_genes(
           initializer,
           parent_id,
-          0..num_genes
+          0..gene_count,
+          meta
         )
 
-        fitness = GenotypeEvaluator.evaluate(evaluator, genes_for_parent, num_trials)
+        fitness = GenotypeEvaluator.evaluate(evaluator, genes_for_parent, trial_count, meta)
 
         {GeneticKeyName.parent_index_id(parent_id, index), %{
           noise_fitness: 0,
@@ -32,8 +34,8 @@ defmodule SSSNE.GeneticsServerImpl do
       end)
   end
 
-  def initialize_parents(num_parents) do
-    Enum.map(0..num_parents, fn _ -> Utils.random_id() end)
+  def initialize_parents(parent_count) do
+    Enum.map(0..parent_count, fn _ -> Utils.random_id() end)
   end
 
   def genome_max_fitness(genome) do
@@ -44,8 +46,9 @@ defmodule SSSNE.GeneticsServerImpl do
 
   def evolve_genes(%{
     genome: genome,
+    meta: meta,
     reproduction_rate: reproduction_rate,
-    num_gene_trials: gene_trials,
+    gene_trial_count: gene_trials,
     max_fitness: max_fitness,
     evaluations: evaluations,
     evaluator: evaluator,
@@ -67,8 +70,8 @@ defmodule SSSNE.GeneticsServerImpl do
       }
     ) ->
       new_parent_id = GeneticKeyName.parent_index_id(parent_id, index)
-      new_parent_genes = GenomeMutation.mutate(mutator, new_parent_id, current_phenotype)
-      new_fitness = GenotypeEvaluator.evaluate(evaluator, new_parent_genes, gene_trials)
+      new_parent_genes = GenomeMutation.mutate(mutator, current_phenotype, new_parent_id, index, meta)
+      new_fitness = GenotypeEvaluator.evaluate(evaluator, new_parent_genes, gene_trials, meta)
 
       evaluations = evaluations + gene_trials
 
@@ -122,10 +125,10 @@ defmodule SSSNE.GeneticsServerImpl do
     current_fitness * (1.0 + stochasticity_random)
   end
 
-  def rank_select_genes(%{genome: genome, num_parents: num_parents} = state) do
+  def rank_select_genes(%{genome: genome, parent_count: parent_count} = state) do
     genome = genome
       |> Enum.sort_by(fn {_, %{noise_fitness: noise_fitness}} -> noise_fitness end, &Kernel.>=/2)
-      |> Enum.take(num_parents)
+      |> Enum.take(parent_count)
       |> Map.new
 
     Map.put(state, :genome, genome)

@@ -1,5 +1,5 @@
 defmodule SSSNE do
   @moduledoc """
-  Documentation for SssNe.
+  Stocastic Steady State Neural Evolution
   """
 end
