@@ -1,4 +1,4 @@
-defmodule SSSNE.Impls.TCEM.NetworkRepresentationMapper.Test do
+defmodule SSSNE.Impls.TCEM.NetworkRepresentationMapper.ConsoleView do
   alias SSSNE.Impls.TCEM.NetworkRepresentationMapper
 
   @behaviour NetworkRepresentationMapper

@@ -62,7 +62,7 @@ defmodule SSSNE.Impls.TCEM do
       fitness: nil,
       config: EncodingConfig.create(
         ComponentDecoder.SubNet,
-        NetworkRepresentationMapper.Test,
+        NetworkRepresentationMapper.ConsoleView,
         input_length,
         output_length,
         component_length
