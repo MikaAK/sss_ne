@@ -20,14 +20,11 @@ defmodule SSSNE.Impls.TCEM.ComponentDecoder.SubNet do
   @impl ComponentDecoder
   def split_components(components, %EncodingConfig{
     input_component_count: input_count,
-    component_count: components_count,
+    middle_component_count: middle_count
   }) do
-    inputs_end_idx = input_count - 1
-    middle_end_idx = components_count - inputs_end_idx
-
-    inputs = Enum.slice(components, 0, inputs_end_idx)
-    middles = Enum.slice(components, input_count, middle_end_idx)
-    outputs = Enum.slice(components, inputs_end_idx + middle_end_idx)
+    inputs = Enum.slice(components, 0, input_count)
+    middles = Enum.slice(components, input_count, middle_count)
+    outputs = Enum.slice(components, (middle_count + input_count)..-1)
 
     {inputs, middles, outputs}
   end
