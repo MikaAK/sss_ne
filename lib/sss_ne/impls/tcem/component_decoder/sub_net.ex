@@ -34,10 +34,11 @@ defmodule SSSNE.Impls.TCEM.ComponentDecoder.SubNet do
     input_components,
     %EncodingConfig{
       input_component_count: input_node_count,
+      output_component_count: output_node_count,
       representation_mapper: representation_mapper
     } = encoding_config
   ) do
-    output_node_count = input_node_count + EncodingConfig.middle_node_count(encoding_config)
+    output_node_count = output_node_count + EncodingConfig.middle_node_count(encoding_config)
 
     # Thanks to @component_length we know the size of components
     Enum.reduce(input_components, %{}, fn ([codon_1, codon_2, codon_3], input_node_map) ->
@@ -45,9 +46,10 @@ defmodule SSSNE.Impls.TCEM.ComponentDecoder.SubNet do
       output_num = input_and_middle_output_node_num(codon_3, input_node_count, output_node_count)
       representation = codon_to_representation(representation_mapper, codon_2)
 
-      res = %{output: output_num, representation: representation}
-
-      Map.put(input_node_map, node_num, res)
+      Map.put(input_node_map, node_num, %{
+        output: output_num,
+        representation: representation
+      })
     end)
   end
 
@@ -94,8 +96,8 @@ defmodule SSSNE.Impls.TCEM.ComponentDecoder.SubNet do
   end
 
   # Algorithm 3 - Regular mapping for last triple codon
-  def input_and_middle_output_node_num(third_codon, num_inputs, possible_output_node_length) do
-    Integer.mod(CodonIntegerMapper.to_integer(third_codon), possible_output_node_length) + num_inputs
+  def input_and_middle_output_node_num(third_codon, input_node_count, output_node_count) do
+    Integer.mod(CodonIntegerMapper.to_integer(third_codon), output_node_count) + input_node_count
   end
 
   @impl ComponentDecoder
@@ -136,10 +138,10 @@ defmodule SSSNE.Impls.TCEM.ComponentDecoder.SubNet do
   end
 
   # Algorithm 4 - 1 -> 1 mapping for last triple codon
-  def output_node_num(third_codon, input_num, middle_num, output_num) when is_bitstring(third_codon) do
+  def output_node_num(third_codon, input_num, middle_num, output_num, node_map) when is_bitstring(third_codon) do
     third_codon
       |> CodonIntegerMapper.to_integer
-      |> output_node_num(input_num, middle_num, output_num)
+      |> output_node_num(input_num, middle_num, output_num, node_map)
   end
 
   def output_node_num(third_codon_num, input_num, middle_num, output_num, node_map) do
@@ -156,5 +158,14 @@ defmodule SSSNE.Impls.TCEM.ComponentDecoder.SubNet do
     codon_int = CodonIntegerMapper.to_integer(codon)
 
     NetworkRepresentationMapper.representation_index(representation_mapper, codon_int)
+  end
+
+  @impl ComponentDecoder
+  def create_network(input_nodes, middle_nodes, output_nodes) do
+    %{
+      inputs: input_nodes,
+      hidden_layers: middle_nodes,
+      outputs: output_nodes
+    }
   end
 end
